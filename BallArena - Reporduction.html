@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bouncy Bouncy</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #000;
+            color: #fff;
+            overflow: hidden;
+            touch-action: none;
+            font-family: sans-serif;
+        }
+        canvas {
+            max-width: 100%;
+            max-height: 65vh;
+            touch-action: none;
+        }
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #4ade80;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #4ade80;
+        }
+        input[type=range] {
+            accent-color: #4ade80;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-2">
+
+    <div class="text-center mb-2 flex flex-col items-center">
+        <h1 class="text-2xl font-bold tracking-tight text-white">Bouncy Bouncy</h1>
+        <!-- Download Button -->
+        <button id="downloadBtn" class="mt-1 text-[9px] text-gray-500 hover:text-green-400 uppercase tracking-widest border border-gray-800 px-2 py-1 rounded transition-colors flex items-center gap-1">
+            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download Code
+        </button>
+    </div>
+
+    <!-- Simulation Container -->
+    <div class="relative flex items-center justify-center bg-black border border-gray-800 rounded-xl p-1 shadow-2xl">
+        <canvas id="simCanvas"></canvas>
+    </div>
+
+    <!-- Minimal Controls -->
+    <div class="mt-3 w-full max-w-sm space-y-2">
+        
+        <!-- Row 1: Action Buttons & Stats -->
+        <div class="flex gap-2 items-center">
+            <button id="startBtn" class="flex-1 py-1.5 bg-green-600 hover:bg-green-500 text-white rounded-md text-[10px] font-bold transition-all active:scale-95 uppercase">
+                Start
+            </button>
+            <button id="stopBtn" class="flex-1 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-md text-[10px] font-bold transition-all active:scale-95 uppercase">
+                Stop
+            </button>
+            <button id="resetBtn" class="flex-1 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-md text-[10px] font-bold transition-all active:scale-95 uppercase">
+                Reset
+            </button>
+            
+            <div class="flex items-center gap-2 px-2 py-1.5 bg-gray-900 border border-gray-800 rounded-md">
+                <div class="relative inline-block w-6 align-middle select-none">
+                    <input type="checkbox" id="freezeToggle" checked class="toggle-checkbox absolute block w-3 h-3 rounded-full bg-white border-2 appearance-none cursor-pointer outline-none transition-all duration-300"/>
+                    <label for="freezeToggle" class="toggle-label block overflow-hidden h-3 rounded-full bg-gray-600 cursor-pointer transition-colors duration-300"></label>
+                </div>
+                <div class="flex items-center gap-1">
+                    <span id="ballCount" class="text-[10px] font-bold font-mono text-green-400 leading-none">2</span>
+                    <span class="text-[8px] font-bold text-gray-500 leading-none">/200</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 2: Sliders -->
+        <div class="bg-gray-900/50 p-2 rounded-lg border border-gray-800">
+            <div class="grid grid-cols-3 gap-3">
+                <div class="flex flex-col gap-1">
+                    <span class="text-gray-500 text-[8px] uppercase font-bold text-center">Speed</span>
+                    <input type="range" id="speedSlider" min="1" max="15" value="5" class="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <span class="text-gray-500 text-[8px] uppercase font-bold text-center">Size</span>
+                    <input type="range" id="sizeSlider" min="4" max="25" value="10" class="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <span class="text-gray-500 text-[8px] uppercase font-bold text-center">Chaos</span>
+                    <input type="range" id="eccSlider" min="0" max="1" step="0.05" value="0.35" class="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const freezeToggle = document.getElementById('freezeToggle');
+        const ballCountDisplay = document.getElementById('ballCount');
+        
+        const speedSlider = document.getElementById('speedSlider');
+        const sizeSlider = document.getElementById('sizeSlider');
+        const eccSlider = document.getElementById('eccSlider');
+
+        let ballRadius = parseInt(sizeSlider.value);
+        let baseSpeed = parseInt(speedSlider.value); 
+        let currentEccentricity = parseFloat(eccSlider.value);
+        
+        const MAX_BALLS = 200; 
+        const COOLDOWN_PADDING = 10; 
+        const SPAWN_LOCK_TICKS = 30; 
+        const FREEZE_DURATION = 100; // 0.1 Seconds
+        
+        let width, height, centerX, centerY, outerRadius;
+        let animationId;
+        let isRunning = false;
+        let ballIdCounter = 0;
+        let pauseUntil = 0;
+
+        let balls = [];
+        let ripples = [];
+
+        // Manual Download logic using document.execCommand fallback as needed
+        downloadBtn.onclick = () => {
+            const htmlContent = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'bouncy_sim.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        };
+
+        speedSlider.addEventListener('input', (e) => {
+            baseSpeed = parseInt(e.target.value);
+            balls.forEach(ball => {
+                const angle = Math.atan2(ball.vy, ball.vx);
+                ball.vx = Math.cos(angle) * baseSpeed;
+                ball.vy = Math.sin(angle) * baseSpeed;
+                ball.speed = baseSpeed;
+            });
+        });
+
+        sizeSlider.addEventListener('input', (e) => {
+            ballRadius = parseInt(e.target.value);
+            draw();
+        });
+
+        eccSlider.addEventListener('input', (e) => {
+            currentEccentricity = parseFloat(e.target.value);
+        });
+
+        function parseToHsl(colorStr) {
+            if (colorStr.startsWith('hsl')) {
+                const values = colorStr.match(/\d+(\.\d+)?/g);
+                return { h: parseFloat(values[0]), s: parseFloat(values[1]), l: parseFloat(values[2]) };
+            }
+            return { h: 0, s: 100, l: 50 };
+        }
+
+        function mixColors(color1, color2) {
+            const hsl1 = parseToHsl(color1);
+            const hsl2 = parseToHsl(color2);
+            let h1 = hsl1.h;
+            let h2 = hsl2.h;
+            if (Math.abs(h2 - h1) > 180) {
+                if (h2 > h1) h1 += 360; else h2 += 360;
+            }
+            let mixedHue = ((h1 + h2) / 2 + (Math.random() - 0.5) * 60) % 360;
+            return `hsl(${mixedHue}, 80%, 60%)`;
+        }
+
+        function resize() {
+            const size = Math.min(window.innerWidth * 0.95, 420);
+            canvas.width = size;
+            canvas.height = size;
+            width = canvas.width;
+            height = canvas.height;
+            centerX = width / 2;
+            centerY = height / 2;
+            outerRadius = (width / 2) - 10;
+            if (balls.length === 0) resetBalls();
+            draw();
+        }
+
+        function createBall(x, y, color, isNewSpawn = false) {
+            const moveAngle = Math.random() * Math.PI * 2;
+            return {
+                id: ballIdCounter++,
+                x: x, y: y,
+                vx: Math.cos(moveAngle) * baseSpeed,
+                vy: Math.sin(moveAngle) * baseSpeed,
+                speed: baseSpeed,
+                color: color,
+                activeCollisions: new Set(),
+                ticksSinceSpawn: 0,
+                canSpawn: !isNewSpawn 
+            };
+        }
+
+        function createRipple(x, y, color) {
+            ripples.push({ x, y, color, radius: ballRadius, alpha: 1.0, maxRadius: ballRadius * 4 });
+        }
+
+        function resetBalls() {
+            ballIdCounter = 0;
+            pauseUntil = 0;
+            ripples = [];
+            balls = [
+                createBall(centerX - 70, centerY, 'hsl(180, 90%, 60%)'), 
+                createBall(centerX + 70, centerY, 'hsl(30, 90%, 60%)')
+            ];
+            ballCountDisplay.textContent = balls.length;
+            draw();
+        }
+
+        function reflectBall(ball, nx, ny) {
+            const dotProduct = ball.vx * nx + ball.vy * ny;
+            if (dotProduct > 0) {
+                let rx = ball.vx - 2 * dotProduct * nx;
+                let ry = ball.vy - 2 * dotProduct * ny;
+                const newAngle = Math.atan2(ry, rx) + (Math.random() - 0.5) * 2 * currentEccentricity;
+                ball.vx = Math.cos(newAngle) * ball.speed;
+                ball.vy = Math.sin(newAngle) * ball.speed;
+            }
+        }
+
+        function draw() {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, width, height);
+
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, outerRadius, 0, Math.PI * 2);
+            ctx.strokeStyle = '#222';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            ripples.forEach(r => {
+                ctx.beginPath();
+                ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
+                const color = r.color.replace('hsl', 'hsla').replace(')', `, ${r.alpha})`);
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+
+            balls.forEach(ball => {
+                ctx.beginPath();
+                ctx.arc(ball.x, ball.y, ballRadius, 0, Math.PI * 2);
+                ctx.fillStyle = ball.color;
+                ctx.globalAlpha = ball.canSpawn ? 1.0 : 0.5;
+                ctx.fill();
+            });
+            ctx.globalAlpha = 1.0;
+        }
+
+        function update() {
+            if (!isRunning) return;
+            
+            if (freezeToggle.checked && Date.now() < pauseUntil) {
+                draw();
+                animationId = requestAnimationFrame(update);
+                return;
+            }
+
+            for (let i = ripples.length - 1; i >= 0; i--) {
+                ripples[i].radius += 2;
+                ripples[i].alpha *= 0.85;
+                if (ripples[i].alpha < 0.1) ripples.splice(i, 1);
+            }
+
+            balls.forEach(ball => {
+                ball.x += ball.vx; ball.y += ball.vy;
+                if (!ball.canSpawn && ++ball.ticksSinceSpawn > SPAWN_LOCK_TICKS) ball.canSpawn = true;
+            });
+
+            const newSpawned = [];
+            for (let i = 0; i < balls.length; i++) {
+                for (let j = i + 1; j < balls.length; j++) {
+                    const b1 = balls[i], b2 = balls[j];
+                    const dx = b2.x - b1.x, dy = b2.y - b1.y, dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist < ballRadius * 2) {
+                        if (!b1.activeCollisions.has(b2.id)) {
+                            const nx = dx/dist, ny = dy/dist;
+                            reflectBall(b1, nx, ny); reflectBall(b2, -nx, -ny);
+                            b1.activeCollisions.add(b2.id); b2.activeCollisions.add(b1.id);
+                            
+                            if (b1.canSpawn && b2.canSpawn && balls.length < MAX_BALLS) {
+                                const mixed = mixColors(b1.color, b2.color);
+                                createRipple((b1.x+b2.x)/2, (b1.y+b2.y)/2, mixed);
+                                newSpawned.push(createBall((b1.x+b2.x)/2, (b1.y+b2.y)/2, mixed, true));
+                                if (freezeToggle.checked) pauseUntil = Date.now() + FREEZE_DURATION;
+                            }
+                        }
+                    } else if (dist > ballRadius * 2 + COOLDOWN_PADDING) {
+                        b1.activeCollisions.delete(b2.id); b2.activeCollisions.delete(b1.id);
+                    }
+                }
+                const dC = Math.sqrt((balls[i].x-centerX)**2 + (balls[i].y-centerY)**2);
+                if (dC + ballRadius > outerRadius) {
+                    const nx = (balls[i].x-centerX)/dC, ny = (balls[i].y-centerY)/dC;
+                    reflectBall(balls[i], nx, ny);
+                }
+            }
+            if (newSpawned.length) { balls.push(...newSpawned); ballCountDisplay.textContent = balls.length; }
+            draw();
+            animationId = requestAnimationFrame(update);
+        }
+
+        startBtn.onclick = () => { if(!isRunning) { isRunning = true; update(); } };
+        stopBtn.onclick = () => { isRunning = false; cancelAnimationFrame(animationId); };
+        resetBtn.onclick = () => { isRunning = false; cancelAnimationFrame(animationId); resetBalls(); };
+        window.onresize = resize;
+        window.onload = resize;
+    </script>
+</body>
+</html>

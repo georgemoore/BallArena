@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BallArena</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #000;
+            color: #fff;
+            overflow: hidden;
+            touch-action: none;
+        }
+        canvas {
+            max-width: 100%;
+            max-height: 60vh;
+            touch-action: none;
+        }
+        
+        .toggle-checkbox:checked + .toggle-label .toggle-dot {
+            transform: translateX(100%);
+            background-color: #ffffff;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #4ade80;
+        }
+        .toggle-dot {
+            transition: transform 0.3s ease-in-out;
+        }
+
+        input[type=range] {
+            accent-color: #4ade80;
+        }
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        .frosted-card {
+            background-color: rgba(15, 15, 20, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+        }
+        .settings-label {
+            color: #ffffff;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+        .settings-desc {
+            color: #9ca3af;
+            font-size: 0.8rem;
+            line-height: 1.4;
+        }
+        .ctrl-btn {
+            height: 52px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 1 80px;
+            min-width: 0;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div class="text-center mb-4 relative">
+        <div class="inline-flex items-center gap-2">
+            <h1 class="text-3xl font-bold tracking-tight text-white">BallArena</h1>
+            <button id="rulesBtn" class="text-gray-400 hover:text-white transition-colors" title="View Rules">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <div class="relative flex items-center justify-center bg-black border border-gray-800 rounded-xl p-2 shadow-2xl">
+        <canvas id="simCanvas"></canvas>
+    </div>
+
+    <div class="mt-6 w-full max-w-md space-y-4">
+        <div class="flex gap-3 w-full justify-center items-center px-8">
+            <button id="resetBtn" title="Reset" class="ctrl-btn bg-blue-600 hover:bg-blue-500 text-white rounded-2xl transition-all active:scale-95 shadow-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </button>
+            <button id="stopBtn" title="Stop" class="ctrl-btn bg-red-600 hover:bg-red-500 text-white rounded-2xl transition-all active:scale-95 shadow-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+            </button>
+            <button id="startBtn" title="Start" class="ctrl-btn bg-green-600 hover:bg-green-500 text-white rounded-2xl transition-all active:scale-95 shadow-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            </button>
+            <button id="settingsBtn" title="Settings" class="ctrl-btn bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl transition-all active:scale-95 shadow-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+        </div>
+
+        <div class="bg-gray-900/50 p-4 rounded-2xl border border-gray-800 space-y-4">
+            <div class="flex items-center justify-between gap-3">
+                <div class="flex-1 bg-black/40 px-4 py-2 rounded-xl border border-white/5 flex items-center justify-between">
+                    <span class="text-[10px] text-gray-500 uppercase font-black tracking-widest">Current</span>
+                    <span id="ballCount" class="text-lg font-bold font-mono text-green-400">2</span>
+                </div>
+                <div class="flex-1 bg-black/40 px-4 py-2 rounded-xl border border-white/5 flex items-center justify-between">
+                    <span class="text-[10px] text-gray-500 uppercase font-black tracking-widest">Peak</span>
+                    <span id="peakCount" class="text-lg font-bold font-mono text-blue-400">2</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+                <div class="flex flex-col gap-2">
+                    <div class="flex justify-between w-full">
+                        <span class="text-gray-400 text-xs uppercase tracking-wider font-bold">Base Speed</span>
+                        <span id="speedVal" class="text-green-400 text-xs font-mono">50%</span>
+                    </div>
+                    <input type="range" id="speedSlider" min="0" max="15" step="1.5" value="7.5" class="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                </div>
+                <div class="flex flex-col gap-2">
+                    <div class="flex justify-between w-full">
+                        <span class="text-gray-400 text-xs uppercase tracking-wider font-bold">Base Size</span>
+                        <span id="sizeVal" class="text-green-400 text-xs font-mono">M</span>
+                    </div>
+                    <input type="range" id="sizeSlider" min="0" max="8" value="4" class="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SETTINGS MODAL -->
+    <div id="settingsModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay hidden">
+        <div class="frosted-card w-full max-w-lg rounded-3xl flex flex-col shadow-2xl max-h-[90vh]">
+            <div class="p-6 border-b border-white/10 flex justify-between items-center">
+                <h2 class="text-2xl font-bold text-white flex items-center gap-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                    Simulation Settings
+                </h2>
+                <button id="closeSettings" class="text-white bg-white/10 p-2 rounded-xl hover:bg-white/20 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+            </div>
+
+            <div class="p-6 overflow-y-auto custom-scrollbar space-y-10 pb-12">
+                <!-- Environment Section -->
+                <section class="space-y-6">
+                    <h3 class="text-xs font-black text-green-400 uppercase tracking-[0.25em] opacity-80 border-b border-green-400/20 pb-2">Physical Environment</h3>
+                    <div class="space-y-8">
+                        <div>
+                            <div class="flex justify-between mb-2">
+                                <label class="settings-label">Eccentricity</label>
+                                <span id="label-eccentricity" class="text-xs font-mono font-bold text-green-400 bg-green-400/10 px-2 py-0.5 rounded border border-green-400/20">0°</span>
+                            </div>
+                            <p class="settings-desc mb-4">Injects chaos into bounces. A higher value means balls reflect at slightly random angles rather than perfectly.</p>
+                            <input type="range" id="cfg-eccentricity" min="0" max="30" step="0.5" value="0" class="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                        <div>
+                            <div class="flex justify-between mb-2">
+                                <label class="settings-label">Freeze Frame</label>
+                                <span id="label-freeze-duration" class="text-xs font-mono font-bold text-green-400 bg-green-400/10 px-2 py-0.5 rounded border border-green-400/20">None</span>
+                            </div>
+                            <p class="settings-desc mb-4">Adds a cinematic pause on birth or death events. Increases the "impact" of population changes.</p>
+                            <input type="range" id="cfg-freeze-slider" min="0" max="50" step="1" value="0" class="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Population Section -->
+                <section class="space-y-6">
+                    <h3 class="text-xs font-black text-blue-400 uppercase tracking-[0.25em] opacity-80 border-b border-blue-400/20 pb-2">Population Dynamics</h3>
+                    <div class="space-y-8">
+                        <div>
+                            <div class="flex justify-between mb-2">
+                                <label class="settings-label">Population Capacity</label>
+                                <span id="label-max-balls" class="text-xs font-mono font-bold text-blue-400 bg-blue-400/10 px-2 py-0.5 rounded border border-blue-400/20">400</span>
+                            </div>
+                            <p class="settings-desc mb-4">The hard limit for the arena. No new births can occur once this number is reached.</p>
+                            <input type="range" id="cfg-max-balls" min="50" max="1500" step="50" value="400" class="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                        
+                        <div>
+                            <div class="flex justify-between mb-2">
+                                <label class="settings-label">Standard Lifespan</label>
+                                <span id="label-baseMaxLifetime" class="text-xs font-mono font-bold text-blue-400 bg-blue-400/10 px-2 py-0.5 rounded border border-blue-400/20">5000</span>
+                            </div>
+                            <p class="settings-desc mb-4">Base duration (in ticks) a ball survives. Higher values lead to slower population turnover.</p>
+                            <input type="range" id="cfg-baseMaxLifetime" min="500" max="15000" step="500" value="5000" class="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between mb-2">
+                                <label class="settings-label">Infancy Duration</label>
+                                <span id="label-infancyTicks" class="text-xs font-mono font-bold text-blue-400 bg-blue-400/10 px-2 py-0.5 rounded border border-blue-400/20">60</span>
+                            </div>
+                            <p class="settings-desc mb-4">Time after birth before a ball can breed or be hunted. Prevents immediate chain-reactions.</p>
+                            <input type="range" id="cfg-infancyTicks" min="0" max="500" step="10" value="60" class="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between mb-2">
+                                <label class="settings-label">Breeding Interval</label>
+                                <span id="label-reproCooldown" class="text-xs font-mono font-bold text-blue-400 bg-blue-400/10 px-2 py-0.5 rounded border border-blue-400/20">60</span>
+                            </div>
+                            <p class="settings-desc mb-4">Mandatory wait time between successful breeding events for an individual ball.</p>
+                            <input type="range" id="cfg-reproCooldown" min="10" max="300" step="10" value="60" class="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer">
+                        </div>
+
+                        <!-- Stress Section (Sub-population) -->
+                        <div class="p-5 bg-white/5 rounded-2xl border border-white/10 space-y-6">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <label class="settings-label">Stress-Induced Aging</label>
+                                    <p class="settings-desc">Reduces lifespan as the arena gets crowded.</p>
+                                </div>
+                                <div class="relative inline-block w-12 h-7 align-middle select-none">
+                                    <input type="checkbox" id="cfg-stress-toggle" checked class="toggle-checkbox hidden"/>
+                                    <label for="cfg-stress-toggle" class="toggle-label block h-full rounded-full bg-gray-700 cursor-pointer transition-colors duration-300 relative p-1">
+                                        <div class="toggle-dot w-5 h-5 rounded-full bg-white shadow-sm"></div>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-6 pt-2 border-t border-white/5">
+                                <div>
+                                    <div class="flex justify-between mb-2">
+                                        <span class="text-xs font-bold text-gray-400 uppercase">Stress Threshold</span>
+                                        <span id="label-stressPopFloor" class="text-xs font-mono font-bold text-blue-300">50</span>
+                                    </div>
+                                    <p class="settings-desc mb-3">Population count where stress begins to kick in. Below this, aging is normal.</p>
+                                    <input type="range" id="cfg-stressPopFloor" min="0" max="300" step="10" value="50" class="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer">
+                                </div>
+                                <div>
+                                    <div class="flex justify-between mb-2">
+                                        <span class="text-xs font-bold text-gray-400 uppercase">Maximum Lethality</span>
+                                        <span id="label-stressIntensity" class="text-xs font-mono font-bold text-blue-300">70%</span>
+                                    </div>
+                                    <p class="settings-desc mb-3">The percentage of lifespan lost when population reaches total capacity.</p>
+                                    <input type="range" id="cfg-stressIntensity" min="0" max="1" step="0.05" value="0.7" class="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Predation Section -->
+                <section class="space-y-6">
+                    <h3 class="text-xs font-black text-red-400 uppercase tracking-[0.25em] opacity-80 border-b border-red-400/20 pb-2">Predator Evolution</h3>
+                    <div class="space-y-8">
+                        <div>
+                            <div class="flex justify-between mb-2">
+                                <label class="settings-label">Hunter Mode Duration</label>
+                                <span id="label-killerModeDuration" class="text-xs font-mono font-bold text-red-400 bg-red-400/10 px-2 py-0.5 rounded border border-red-400/20">500</span>
+                            </div>
+                            <p class="settings-desc mb-4">How long a Predator stays in "Hunter Mode" after a kill. They cannot breed during this state.</p>
+                            <input type="range" id="cfg-killerModeDuration" min="100" max="2000" step="100" value="500" class="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between mb-2">
+                                <label class="settings-label">Evolution Trigger</label>
+                                <span id="label-hunt-trigger" class="text-xs font-mono font-bold text-red-400 bg-red-400/10 px-2 py-0.5 rounded border border-red-400/20">2</span>
+                            </div>
+                            <p class="settings-desc mb-4">Required number of children a ball must have before it evolves into a Predator.</p>
+                            <input type="range" id="cfg-hunt-trigger" min="0" max="10" step="1" value="2" class="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between mb-2">
+                                <label class="settings-label">Strike Mastery</label>
+                                <span id="label-huntSuccessBonus" class="text-xs font-mono font-bold text-red-400 bg-red-400/10 px-2 py-0.5 rounded border border-red-400/20">5%</span>
+                            </div>
+                            <p class="settings-desc mb-4">Kill probability bonus gained with each successful hunt. Higher values make "Old Hunters" extremely lethal.</p>
+                            <input type="range" id="cfg-huntSuccessBonus" min="0.01" max="0.2" step="0.01" value="0.05" class="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between mb-2">
+                                <label class="settings-label">Hunter Agility</label>
+                                <span id="label-huntSpeedBoost" class="text-xs font-mono font-bold text-red-400 bg-red-400/10 px-2 py-0.5 rounded border border-red-400/20">+20%</span>
+                            </div>
+                            <p class="settings-desc mb-4">Speed boost granted to Hunter-mode balls. Helps them chase down prey.</p>
+                            <input type="range" id="cfg-huntSpeedBoost" min="0" max="1" step="0.05" value="0.2" class="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <!-- RULES MODAL -->
+    <div id="rulesModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay hidden">
+        <div class="frosted-card w-full max-w-lg rounded-3xl p-8 shadow-2xl max-h-[85vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-8">
+                <h2 class="text-3xl font-black text-white">Simulation Mechanics</h2>
+                <button id="closeRules" class="text-white bg-white/10 p-2 rounded-xl hover:bg-white/20 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+            </div>
+            <div class="space-y-8 text-white/90 text-base leading-relaxed">
+                <section>
+                    <h3 class="text-red-400 font-black uppercase text-xs tracking-widest mb-3 border-b border-red-400/20 pb-2">Predation</h3>
+                    <p>When balls exceed the <strong>Evolution Trigger</strong>, they become Hunters. Hunters kill non-parents they touch, reset their "Hunter Mode" timer, and grow stronger with every kill.</p>
+                </section>
+                <section>
+                    <h3 class="text-green-400 font-black uppercase text-xs tracking-widest mb-3 border-b border-green-400/20 pb-2">Genetics</h3>
+                    <p>Offspring receive a color mix from parents and a <strong>health bonus</strong>, allowing the population to evolve towards higher longevity over many generations.</p>
+                </section>
+                <section>
+                    <h3 class="text-blue-400 font-black uppercase text-xs tracking-widest mb-3 border-b border-blue-400/20 pb-2">Stress</h3>
+                    <p>As the arena approaches its capacity, the environment becomes hostile. Every ball's lifespan is slashed based on the <strong>Lethality Multiplier</strong> to prevent overcrowding.</p>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const ballCountDisplay = document.getElementById('ballCount');
+        const peakCountDisplay = document.getElementById('peakCount');
+        const speedSlider = document.getElementById('speedSlider');
+        const sizeSlider = document.getElementById('sizeSlider');
+        const speedValDisplay = document.getElementById('speedVal');
+        const sizeValDisplay = document.getElementById('sizeVal');
+        const rulesBtn = document.getElementById('rulesBtn');
+        const rulesModal = document.getElementById('rulesModal');
+        const closeRules = document.getElementById('closeRules');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const settingsModal = document.getElementById('settingsModal');
+        const closeSettings = document.getElementById('closeSettings');
+
+        const sizeLabels = ["Titchy", "XXS", "XS", "S", "M", "L", "XL", "XXL", "Whooper"];
+        const sizePixelMap = [4, 7, 10, 13, 16, 19, 22, 25, 28];
+
+        const Config = {
+            maxBalls: 400,
+            baseMaxLifetime: 5000,
+            reproCooldown: 60,
+            stressEnabled: true,
+            stressIntensity: 0.7,
+            stressPopFloor: 50,
+            killerModeDuration: 500,
+            huntTriggerChildren: 2,
+            huntSuccessBonus: 0.05,
+            huntSpeedBoost: 0.2,
+            infancyTicks: 60,
+            lifeBonusPercent: 0.1,
+            eccentricity: 0, 
+            freezeDuration: 0
+        };
+
+        let baseRadius = sizePixelMap[parseInt(sizeSlider.value)];
+        let baseSpeed = parseFloat(speedSlider.value); 
+        const COOLDOWN_PADDING = 10; 
+        const INFANCY_START_SCALE = 0.8; 
+        let width, height, centerX, centerY, outerRadius;
+        let animationId, isRunning = false, ballIdCounter = 0, pauseUntil = 0, peakPopulation = 0;
+        let balls = [], ripples = [];
+
+        rulesBtn.onclick = () => rulesModal.classList.remove('hidden');
+        closeRules.onclick = () => rulesModal.classList.add('hidden');
+        settingsBtn.onclick = () => settingsModal.classList.remove('hidden');
+        closeSettings.onclick = () => settingsModal.classList.add('hidden');
+
+        const updateConfigUI = () => {
+            const bindInput = (id, labelId, configKey, formatter = (v) => v) => {
+                const el = document.getElementById(id);
+                const label = document.getElementById(labelId);
+                if (!el) return;
+                
+                el.oninput = () => {
+                    let val = parseFloat(el.value);
+                    Config[configKey] = val;
+                    if (label) label.textContent = formatter(val);
+                };
+            };
+
+            bindInput('cfg-max-balls', 'label-max-balls', 'maxBalls');
+            bindInput('cfg-hunt-trigger', 'label-hunt-trigger', 'huntTriggerChildren');
+            bindInput('cfg-eccentricity', 'label-eccentricity', 'eccentricity', (v) => v + "°");
+            bindInput('cfg-freeze-slider', 'label-freeze-duration', 'freezeDuration', (v) => v === 0 ? 'None' : (v / 100).toFixed(2) + 's');
+            bindInput('cfg-baseMaxLifetime', 'label-baseMaxLifetime', 'baseMaxLifetime');
+            bindInput('cfg-reproCooldown', 'label-reproCooldown', 'reproCooldown');
+            bindInput('cfg-stressIntensity', 'label-stressIntensity', 'stressIntensity', (v) => Math.round(v * 100) + "%");
+            bindInput('cfg-stressPopFloor', 'label-stressPopFloor', 'stressPopFloor');
+            bindInput('cfg-huntSuccessBonus', 'label-huntSuccessBonus', 'huntSuccessBonus', (v) => Math.round(v * 100) + "%");
+            bindInput('cfg-huntSpeedBoost', 'label-huntSpeedBoost', 'huntSpeedBoost', (v) => "+" + Math.round(v * 100) + "%");
+            bindInput('cfg-infancyTicks', 'label-infancyTicks', 'infancyTicks');
+            bindInput('cfg-killerModeDuration', 'label-killerModeDuration', 'killerModeDuration');
+            
+            document.getElementById('cfg-stress-toggle').onchange = (e) => Config.stressEnabled = e.target.checked;
+        };
+        updateConfigUI();
+
+        const updateSpeedLabel = (val) => {
+            const rawVal = parseFloat(val);
+            speedValDisplay.textContent = Math.round((rawVal / 15) * 100) + "%";
+            baseSpeed = rawVal;
+            balls.forEach(applyBallStats);
+        };
+
+        const updateSizeLabel = (val) => {
+            const index = parseInt(val);
+            sizeValDisplay.textContent = sizeLabels[index];
+            baseRadius = sizePixelMap[index];
+            balls.forEach(applyBallStats);
+            draw();
+        };
+
+        speedSlider.addEventListener('input', (e) => updateSpeedLabel(e.target.value));
+        sizeSlider.addEventListener('input', (e) => updateSizeLabel(e.target.value));
+
+        function mixColors(color1, color2) {
+            const parseToHsl = (colorStr) => {
+                const values = colorStr.match(/\d+(\.\d+)?/g);
+                return { h: parseFloat(values[0]), s: parseFloat(values[1]), l: parseFloat(values[2]) };
+            };
+            const hsl1 = parseToHsl(color1);
+            const hsl2 = parseToHsl(color2);
+            let h1 = hsl1.h, h2 = hsl2.h;
+            if (Math.abs(h2 - h1) > 180) { if (h2 > h1) h1 += 360; else h2 += 360; }
+            let mixedHue = ((h1 + h2) / 2 + (Math.random() - 0.5) * 40) % 360;
+            if (mixedHue < 0) mixedHue += 360;
+            return `hsl(${mixedHue}, 80%, 60%)`;
+        }
+
+        function getRandomColor() { return `hsl(${Math.floor(Math.random() * 360)}, 90%, 60%)`; }
+
+        function resize() {
+            const size = Math.min(window.innerWidth * 0.9, 500);
+            canvas.width = size;
+            canvas.height = size;
+            width = canvas.width;
+            height = canvas.height;
+            centerX = width / 2;
+            centerY = height / 2;
+            outerRadius = (width / 2) - 20;
+            if (balls.length === 0) resetBalls();
+        }
+
+        function applyBallStats(ball) {
+            let sizeMod = 1.0;
+            let speedMod = 1.0;
+            if (!ball.canSpawn) {
+                const progress = ball.ticksSinceSpawn / Math.max(1, Config.infancyTicks);
+                sizeMod = INFANCY_START_SCALE + (1.0 - INFANCY_START_SCALE) * progress;
+            }
+            if (ball.childrenCount > 0) sizeMod += Math.min(0.3, ball.childrenCount * 0.02);
+            if (ball.killerTicks > 0) { sizeMod += 0.3; speedMod += Config.huntSpeedBoost; }
+
+            ball.radius = baseRadius * sizeMod;
+            ball.speed = baseSpeed * speedMod;
+
+            const currentMag = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+            if (ball.speed > 0) {
+                const angle = currentMag > 0 ? Math.atan2(ball.vy, ball.vx) : (ball.lastAngle || Math.random() * Math.PI * 2);
+                ball.vx = Math.cos(angle) * ball.speed;
+                ball.vy = Math.sin(angle) * ball.speed;
+                ball.lastAngle = angle;
+            } else {
+                ball.vx = ball.vy = 0;
+            }
+        }
+
+        function createBall(x, y, color, isNewSpawn = false, parentA = null, parentB = null) {
+            const ball = {
+                id: ballIdCounter++, x, y, vx: 0, vy: 0,
+                radius: baseRadius, speed: baseSpeed,
+                color, activeCollisions: new Set(),
+                ticksSinceSpawn: 0, canSpawn: !isNewSpawn, reproCooldown: 0,
+                killerTicks: 0, killerLevel: 0, failedStrikes: 0,
+                childrenCount: 0, parents: isNewSpawn ? [parentA.id, parentB.id] : [],
+                pastPartners: new Set(), totalLifetimeTicks: 0,
+                maxLifeBonus: isNewSpawn ? (Math.random() * 500 + 200) + (Config.baseMaxLifetime * Config.lifeBonusPercent) : 0
+            };
+            applyBallStats(ball);
+            return ball;
+        }
+
+        function createRipple(x, y, color, r, type = 'normal') {
+            ripples.push({ 
+                x, y, color: type === 'blood' ? '#ff0000' : color, radius: r, alpha: 1.0, 
+                maxRadius: type === 'blood' ? r * 8 : r * 5, isDashed: type === 'failed'
+            });
+        }
+
+        function resetBalls() {
+            ballIdCounter = 0; pauseUntil = 0; peakPopulation = 2; ripples = [];
+            balls = [ createBall(centerX - 80, centerY, getRandomColor()), createBall(centerX + 80, centerY, getRandomColor()) ];
+            updatePopulationDisplays();
+            draw();
+        }
+
+        function updatePopulationDisplays() {
+            ballCountDisplay.textContent = balls.length;
+            if (balls.length > peakPopulation) { peakPopulation = balls.length; peakCountDisplay.textContent = peakPopulation; }
+        }
+
+        function applyEntropyToAngle(baseAngle) {
+            if (Config.eccentricity <= 0) return baseAngle;
+            const maxRadVariation = (Config.eccentricity * Math.PI) / 180;
+            const variation = (Math.random() * 2 - 1) * maxRadVariation;
+            return baseAngle + variation;
+        }
+
+        function triggerFreeze() {
+            if (Config.freezeDuration > 0) {
+                pauseUntil = Date.now() + (Config.freezeDuration * 10);
+            }
+        }
+
+        function draw() {
+            ctx.fillStyle = 'black'; ctx.fillRect(0, 0, width, height);
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, outerRadius, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'; ctx.lineWidth = 3; ctx.stroke();
+
+            ripples.forEach(r => {
+                ctx.beginPath(); ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
+                ctx.strokeStyle = r.color === '#ff0000' ? `rgba(255, 0, 0, ${r.alpha})` : r.color.replace('hsl', 'hsla').replace(')', `, ${r.alpha})`);
+                ctx.lineWidth = 2;
+                if (r.isDashed) ctx.setLineDash([5, 5]); else ctx.setLineDash([]);
+                ctx.stroke();
+            });
+            ctx.setLineDash([]);
+
+            balls.forEach(ball => {
+                const isKiller = ball.killerTicks > 0;
+                let ds = (Config.stressEnabled && balls.length > Config.stressPopFloor) ? ((balls.length - Config.stressPopFloor) / (Config.maxBalls - Config.stressPopFloor)) : 0;
+                const adjLife = (Config.baseMaxLifetime + ball.maxLifeBonus) * (1 - (ds * Config.stressIntensity)); 
+                const lifeAlpha = ball.totalLifetimeTicks > adjLife * 0.8 ? Math.max(0.1, 1 - (ball.totalLifetimeTicks - adjLife * 0.8) / (adjLife * 0.2)) : 1.0;
+
+                ctx.globalAlpha = lifeAlpha;
+                ctx.shadowBlur = isKiller ? 20 : (ball.canSpawn ? 12 : 0);
+                ctx.shadowColor = isKiller ? '#ff0000' : ball.color;
+                ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+                ctx.fillStyle = ball.color; ctx.fill();
+                if (ball.reproCooldown > 0 && ball.canSpawn) { ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 2; ctx.stroke(); }
+                if (isKiller) { ctx.strokeStyle = '#ff0000'; ctx.lineWidth = 3; ctx.stroke(); }
+                ctx.closePath(); ctx.globalAlpha = 1.0;
+            });
+            ctx.shadowBlur = 0;
+        }
+
+        function update() {
+            if (!isRunning) return;
+            if (Config.freezeDuration > 0 && Date.now() < pauseUntil) {
+                ripples.forEach(r => { r.radius += (r.maxRadius - r.radius) * 0.1; r.alpha *= 0.9; });
+                draw(); animationId = requestAnimationFrame(update); return;
+            }
+
+            for (let i = ripples.length - 1; i >= 0; i--) {
+                ripples[i].radius += (ripples[i].maxRadius - ripples[i].radius) * 0.1;
+                ripples[i].alpha *= 0.9;
+                if (ripples[i].alpha < 0.01) ripples.splice(i, 1);
+            }
+
+            const toRemove = new Set();
+            const density = balls.length / Config.maxBalls;
+
+            balls.forEach(ball => {
+                ball.x += ball.vx; ball.y += ball.vy; ball.totalLifetimeTicks++;
+                let ds = (Config.stressEnabled && balls.length > Config.stressPopFloor) ? ((balls.length - Config.stressPopFloor) / (Config.maxBalls - Config.stressPopFloor)) : 0;
+                if (ball.totalLifetimeTicks > (Config.baseMaxLifetime + ball.maxLifeBonus) * (1 - (ds * Config.stressIntensity))) toRemove.add(ball);
+                if (ball.reproCooldown > 0) ball.reproCooldown--;
+                if (ball.killerTicks > 0) {
+                    ball.killerTicks--; if (ball.killerTicks === 0) { ball.killerLevel = 0; ball.failedStrikes = 0; applyBallStats(ball); }
+                }
+                if (!ball.canSpawn) {
+                    ball.ticksSinceSpawn++; applyBallStats(ball);
+                    if (ball.ticksSinceSpawn > Config.infancyTicks) { ball.canSpawn = true; applyBallStats(ball); }
+                }
+
+                const dx = ball.x - centerX, dy = ball.y - centerY;
+                const distFromCenter = Math.sqrt(dx * dx + dy * dy);
+                if (distFromCenter + ball.radius > outerRadius) {
+                    const nx = dx / distFromCenter, ny = dy / distFromCenter;
+                    const dot = ball.vx * nx + ball.vy * ny;
+                    if (dot > 0) {
+                        let rx = ball.vx - 2 * dot * nx;
+                        let ry = ball.vy - 2 * dot * ny;
+                        const idealAngle = Math.atan2(ry, rx);
+                        const modifiedAngle = applyEntropyToAngle(idealAngle);
+                        const speed = Math.sqrt(rx * rx + ry * ry);
+                        ball.vx = Math.cos(modifiedAngle) * speed;
+                        ball.vy = Math.sin(modifiedAngle) * speed;
+                    }
+                    const overlap = (distFromCenter + ball.radius) - outerRadius;
+                    ball.x -= nx * (overlap + 1); ball.y -= ny * (overlap + 1);
+                }
+            });
+
+            const newBalls = [];
+            for (let i = 0; i < balls.length; i++) {
+                for (let j = i + 1; j < balls.length; j++) {
+                    const b1 = balls[i], b2 = balls[j];
+                    if (toRemove.has(b1) || toRemove.has(b2)) continue;
+                    const dx = b2.x - b1.x, dy = b2.y - b1.y, dist = Math.sqrt(dx * dx + dy * dy);
+                    const minDist = b1.radius + b2.radius;
+                    if (dist < minDist) {
+                        let strikeHandled = false;
+                        const processStrike = (killer, victim) => {
+                            const successChance = (0.1 + (killer.killerLevel * Config.huntSuccessBonus) + (density * 0.5));
+                            if (killer.killerTicks <= 0 || Math.random() < successChance) {
+                                toRemove.add(victim); killer.killerTicks = Config.killerModeDuration;
+                                killer.killerLevel++; killer.failedStrikes = 0; applyBallStats(killer);
+                                createRipple(victim.x, victim.y, '#ff0000', victim.radius, 'blood'); 
+                                triggerFreeze(); return true;
+                            } else {
+                                killer.failedStrikes++; if (killer.failedStrikes >= 2) {
+                                    killer.killerTicks = 0; killer.killerLevel = 0; applyBallStats(killer);
+                                    createRipple(killer.x, killer.y, killer.color, killer.radius, 'failed');
+                                }
+                                return false;
+                            }
+                        };
+                        const b1K = (b1.childrenCount >= Config.huntTriggerChildren || b1.killerTicks > 0) && b2.canSpawn && !b2.parents.includes(b1.id) && b2.childrenCount === 0;
+                        const b2K = (b2.childrenCount >= Config.huntTriggerChildren || b2.killerTicks > 0) && b1.canSpawn && !b1.parents.includes(b2.id) && b1.childrenCount === 0;
+                        if (b1K && !b2K) strikeHandled = processStrike(b1, b2);
+                        else if (b2K && !b1K) strikeHandled = processStrike(b2, b1);
+
+                        if (!strikeHandled && !b1.activeCollisions.has(b2.id)) {
+                            const nx = dx / dist, ny = dy / dist, dot1 = b1.vx * nx + b1.vy * ny, dot2 = b2.vx * nx + b2.vy * ny;
+                            b1.vx -= (dot1 - dot2) * nx; b1.vy -= (dot1 - dot2) * ny;
+                            b2.vx -= (dot2 - dot1) * nx; b2.vy -= (dot2 - dot1) * ny;
+                            const a1 = applyEntropyToAngle(Math.atan2(b1.vy, b1.vx));
+                            const a2 = applyEntropyToAngle(Math.atan2(b2.vy, b2.vx));
+                            const s1 = Math.sqrt(b1.vx * b1.vx + b1.vy * b1.vy);
+                            const s2 = Math.sqrt(b2.vx * b2.vx + b2.vy * b2.vy);
+                            b1.vx = Math.cos(a1) * s1; b1.vy = Math.sin(a1) * s1;
+                            b2.vx = Math.cos(a2) * s2; b2.vy = Math.sin(a2) * s2;
+                            b1.activeCollisions.add(b2.id); b2.activeCollisions.add(b1.id);
+                            if (b1.canSpawn && b2.canSpawn && b1.reproCooldown <= 0 && b2.reproCooldown <= 0 && balls.length < Config.maxBalls && !b1.pastPartners.has(b2.id)) {
+                                b1.childrenCount++; b2.childrenCount++; b1.reproCooldown = b2.reproCooldown = Config.reproCooldown;
+                                b1.pastPartners.add(b2.id); b2.pastPartners.add(b1.id);
+                                const col = mixColors(b1.color, b2.color);
+                                newBalls.push(createBall((b1.x + b2.x) / 2, (b1.y + b2.y) / 2, col, true, b1, b2));
+                                createRipple((b1.x + b2.x) / 2, (b1.y + b2.y) / 2, col, minDist / 2);
+                                triggerFreeze(); 
+                            }
+                        }
+                    } else if (dist > minDist + COOLDOWN_PADDING) { b1.activeCollisions.delete(b2.id); b2.activeCollisions.delete(b1.id); }
+                }
+            }
+            if (toRemove.size > 0 || newBalls.length > 0) { balls = balls.filter(b => !toRemove.has(b)).concat(newBalls); updatePopulationDisplays(); }
+            draw(); animationId = requestAnimationFrame(update);
+        }
+
+        startBtn.onclick = () => { if (!isRunning) { isRunning = true; update(); } };
+        stopBtn.onclick = () => { isRunning = false; cancelAnimationFrame(animationId); };
+        resetBtn.onclick = () => { isRunning = false; cancelAnimationFrame(animationId); resetBalls(); };
+        window.onresize = resize;
+        window.onload = resize;
+    </script>
+</body>
+</html>
